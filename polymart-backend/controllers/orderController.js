@@ -8,7 +8,7 @@ const asyncHandler = require('../middleware/async');
 exports.getOrders = asyncHandler(async (req, res, next) => {
   // res.status(200).json(res.advancedResults);
   try {
-    const orders = await Order.find();
+    const orders = await Order.find().populate('user', "name");
     res.status(200).json(orders);
   } catch (error) {
     res.status(500).json({ message: "Internal server error." });
@@ -39,14 +39,20 @@ exports.getOrder = asyncHandler(async (req, res, next) => {
 // @access  Private/Admin
 exports.createOrder = asyncHandler(async (req, res, next) => {
   // Add user to req.body
-  req.body.user = req.user.id;
+  try {
+    // req.body.user = req.user.id;
 
-  const order = await Order.create(req.body);
+    const order = await Order.create(req.body);
 
-  res.status(201).json({
-    success: true,
-    data: order
-  });
+    res.status(201).json({
+      success: true,
+      data: order
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+
 });
 
 // @desc    Update order

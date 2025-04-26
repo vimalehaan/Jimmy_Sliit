@@ -19,7 +19,7 @@ router
     advancedResults(Order, 'user'),
     getOrders
   )
-  .post( createOrder);
+  .post(createOrder);
 
 router
   .route('/:id')
