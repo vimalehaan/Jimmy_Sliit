@@ -1,0 +1,8 @@
+.DS_Store
+.idea
+.env
+
+polymart-backend/.env
+frontend-admin/.env
+polymart-backend/node_modules
+frontend-admin/node_modules
