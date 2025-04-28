@@ -30,6 +30,7 @@ router
   .put(updateOrder)
   .delete(deleteOrder);
 
-router.route("/stats").get(protect, authorize("admin"), getOrderStats);
+// router.route("/stats").get(protect, authorize("admin"), getOrderStats);
+router.route("/stats").get(getOrderStats);
 
 module.exports = router;

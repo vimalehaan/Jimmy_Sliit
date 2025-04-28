@@ -136,30 +136,24 @@ exports.updateOrder = asyncHandler(async (req, res, next) => {
 // @route   DELETE /api/orders/:id
 // @access  Private/Admin
 exports.deleteOrder = asyncHandler(async (req, res, next) => {
-  const order = await Order.findById(req.params.id);
+  const { id } = req.params; // Order ID from URL parameters
 
-  if (!order) {
-    return next(
-      new ErrorResponse(`Order not found with id of ${req.params.id}`, 404),
-    );
+  try {
+    // Delete the order by its ID
+    const order = await Order.findByIdAndDelete(id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Order deleted successfully',
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to delete order' });
   }
-
-  // Make sure user is order owner or admin
-  if (order.user.toString() !== req.user.id && req.user.role !== "admin") {
-    return next(
-      new ErrorResponse(
-        `User ${req.user.id} is not authorized to delete this order`,
-        401,
-      ),
-    );
-  }
-
-  await order.remove();
-
-  res.status(200).json({
-    success: true,
-    data: {},
-  });
 });
 
 // @desc    Get order statistics

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Switch from "react-switch";
 import {
   Home,
   Users,
@@ -75,12 +76,13 @@ function PolymartAdminDashboard() {
   const [editedUserData, setEditedUserData] = useState({
     name: "",
     email: "",
-    status: "Active",
+    isAccountVerified: false,
   });
   const [newUserData, setNewUserData] = useState({
     name: "",
     email: "",
-    status: "Active",
+    password: "",
+    isAccountVerified: false,
   });
   const [editedOrderData, setEditedOrderData] = useState({
     customer: "",
@@ -96,7 +98,25 @@ function PolymartAdminDashboard() {
     fetchOrders();
     fetchRequests();
     fetchMessages(); // Added messages fetch
+    fetchProductCount();
   }, []);
+
+  const fetchProductCount = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/products/count`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch stats");
+      }
+      const data = await response.json();
+      setStats({
+        ...stats,
+        totalProducts: data.total || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching product count:", error);
+      showAlert("Failed to load products count");
+    }
+  };
 
   const fetchDashboardStats = async () => {
     try {
@@ -260,7 +280,7 @@ function PolymartAdminDashboard() {
     setEditedUserData({
       name: user.name || "",
       email: user.email || "",
-      status: user.status || "Active",
+      isAccountVerified: user.isAccountVerified || false,
     });
     setShowUserEditModal(true);
   };
@@ -269,7 +289,7 @@ function PolymartAdminDashboard() {
     if (!editingUser) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${editingUser.id}`, {
+      const response = await fetch(`${API_BASE_URL}/users/${editingUser._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -283,7 +303,7 @@ function PolymartAdminDashboard() {
 
       // Update user in the state
       const updatedUsers = users.map((user) =>
-        user.id === editingUser.id ? { ...user, ...editedUserData } : user,
+        user._id === editingUser._id ? { ...user, ...editedUserData } : user,
       );
       setUsers(updatedUsers);
 
@@ -313,14 +333,15 @@ function PolymartAdminDashboard() {
       const newUser = await response.json();
 
       // Add to users array
-      setUsers([...users, newUser]);
+      setUsers([...users, newUser.data]);
 
       // Close modal and reset form
       setShowAddUserModal(false);
       setNewUserData({
         name: "",
         email: "",
-        status: "Active",
+        password: "",
+        isAccountVerified: false,
       });
 
       showAlert("User added successfully!");
@@ -377,6 +398,32 @@ function PolymartAdminDashboard() {
     } catch (error) {
       console.error("Error updating order:", error);
       showAlert("Failed to update order");
+    }
+  };
+
+  const handleDeleteOrder = async (order) => {
+    if (!order) {
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/orders/${order._id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (response.ok) {
+        const updatedOrders = orders.filter(
+          (existingOrder) => existingOrder._id !== order._id,
+        );
+        setOrders(updatedOrders); // Update the orders state with the new list
+        showAlert("Order deleted successfully!"); // Show success message
+      } else {
+        throw new Error("Failed to delete order");
+      }
+    } catch (error) {
+      console.error("Error Deleting order:", error);
+      showAlert("Failed to delete order");
     }
   };
 
@@ -800,7 +847,7 @@ function PolymartAdminDashboard() {
 
         const salesData = orders.reduce((acc, order) => {
           const date = new Date(order.createdAt);
-          const month = date.toLocaleString('default', { month: 'short' });
+          const month = date.toLocaleString("default", { month: "short" });
           const year = date.getFullYear();
           const monthYear = `${month} ${year}`;
 
@@ -828,7 +875,6 @@ function PolymartAdminDashboard() {
         }, {});
 
         const getStatusColor = (status) => {
-
           switch (status) {
             case "Delivered":
               return "#28a745"; // green (bootstrap success)
@@ -843,13 +889,13 @@ function PolymartAdminDashboard() {
           }
         };
 
-        const pieData = Object.entries(statusCounts).map(([status, count, colour]) => ({
-          status,
-          count,
-          colour: getStatusColor(status),
-        }));
-
-
+        const pieData = Object.entries(statusCounts).map(
+          ([status, count, colour]) => ({
+            status,
+            count,
+            colour: getStatusColor(status),
+          }),
+        );
 
         return (
           <div className="mb-4">
@@ -868,8 +914,10 @@ function PolymartAdminDashboard() {
               <div className="col-md-3">
                 <div className="card">
                   <div className="card-header">
-                    <p className="card-text">Active Sellers</p>
-                    <h3 className="card-title fs-1">{stats.activeSellers}</h3>
+                    <p className="card-text">Active Customers</p>
+                    <h3 className="card-title fs-1">
+                      {users?.filter((u) => u.role === "user").length}
+                    </h3>
                   </div>
                   <div className="card-body">
                     <div className="text-muted">+5% from last month</div>
@@ -890,7 +938,7 @@ function PolymartAdminDashboard() {
               <div className="col-md-3">
                 <div className="card">
                   <div className="card-header">
-                    <p className="card-text">Revenue</p>
+                    <p className="card-text">Total Sales</p>
                     <h3 className="card-title fs-1">
                       ${totalRevenue.toLocaleString()}
                     </h3>
@@ -963,14 +1011,14 @@ function PolymartAdminDashboard() {
                             }
                           >
                             {pieData.map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={entry.colour}
-                              />
+                              <Cell key={`cell-${index}`} fill={entry.colour} />
                             ))}
                           </Pie>
                           <Tooltip
-                              formatter={(value, name, props) => [`${value}`, `${props.payload.status}`]}
+                            formatter={(value, name, props) => [
+                              `${value}`,
+                              `${props.payload.status}`,
+                            ]}
                           />
                         </PieChart>
                       </ResponsiveContainer>
@@ -1031,10 +1079,7 @@ function PolymartAdminDashboard() {
                                 },
                               )}
                             </td>
-                            <td>
-                              $
-                              {order?.amount.toLocaleString()}
-                            </td>
+                            <td>${order?.amount.toLocaleString()}</td>
                             <td>
                               <span
                                 className={`badge ${
@@ -1091,15 +1136,17 @@ function PolymartAdminDashboard() {
                     </thead>
                     <tbody>
                       {users.slice(0, 4).map((user) => (
-                        <tr key={user.id}>
-                          <td>{user.id}</td>
+                        <tr key={user._id}>
+                          <td>{user._id}</td>
                           <td>{user.name}</td>
                           <td>{user.email}</td>
                           <td>
                             <span
-                              className={`badge ${user.status === "Active" ? "bg-success" : "bg-danger"}`}
+                              className={`badge ${user.isAccountVerified ? "bg-success" : "bg-danger"}`}
                             >
-                              {user.status}
+                              {user.isAccountVerified
+                                ? "verified"
+                                : "Unverified"}
                             </span>
                           </td>
                         </tr>
@@ -1156,15 +1203,17 @@ function PolymartAdminDashboard() {
                       </thead>
                       <tbody>
                         {filteredUsers.map((user) => (
-                          <tr key={user.id}>
-                            <td>{user.id}</td>
+                          <tr key={user._id}>
+                            <td>{user._id}</td>
                             <td>{user.name}</td>
                             <td>{user.email}</td>
                             <td>
                               <span
-                                className={`badge ${user.status === "Active" ? "bg-success" : "bg-danger"}`}
+                                className={`badge ${user.isAccountVerified ? "bg-success" : "bg-danger"}`}
                               >
-                                {user.status}
+                                {user.isAccountVerified
+                                  ? "verified"
+                                  : "Unverified"}
                               </span>
                             </td>
                             <td>
@@ -1181,7 +1230,7 @@ function PolymartAdminDashboard() {
                                   onClick={async () => {
                                     try {
                                       const response = await fetch(
-                                        `${API_BASE_URL}/users/${user.id}`,
+                                        `${API_BASE_URL}/users/${user._id}`,
                                         {
                                           method: "DELETE",
                                         },
@@ -1194,7 +1243,13 @@ function PolymartAdminDashboard() {
                                       }
 
                                       setUsers(
-                                        users.filter((u) => u.id !== user.id),
+                                        users.filter((u) => u._id !== user._id),
+                                      );
+                                      setOrders(
+                                        orders.filter(
+                                          (order) =>
+                                            order.user._id !== user._id,
+                                        ),
                                       );
                                       showAlert("User deleted successfully!");
                                     } catch (error) {
@@ -1206,8 +1261,7 @@ function PolymartAdminDashboard() {
                                     }
                                   }}
                                 >
-                                  <Trash size={16} className="me-1" />
-                                  Delete
+                                  <Trash size={16} className="" />
                                 </button>
                               </div>
                             </td>
@@ -1287,9 +1341,7 @@ function PolymartAdminDashboard() {
                                 },
                               )}
                             </td>
-                            <td>
-                              ${order?.amount.toLocaleString()}
-                            </td>
+                            <td>${order?.amount.toLocaleString()}</td>
                             <td>
                               <span
                                 className={`badge ${
@@ -1314,6 +1366,12 @@ function PolymartAdminDashboard() {
                                   onClick={() => handleEditOrder(order)}
                                 >
                                   Edit Status
+                                </button>
+                                <button
+                                  className="btn btn-outline-danger btn-sm"
+                                  onClick={() => handleDeleteOrder(order)}
+                                >
+                                  <Trash size={16} className="" />
                                 </button>
                               </div>
                             </td>
@@ -1641,7 +1699,7 @@ function PolymartAdminDashboard() {
                   <input
                     type="text"
                     className="form-control"
-                    value={editingUser.id}
+                    value={editingUser._id}
                     disabled
                   />
                 </div>
@@ -1663,31 +1721,27 @@ function PolymartAdminDashboard() {
                   <label className="form-label">Email</label>
                   <input
                     type="email"
+                    disabled
                     className="form-control"
                     value={editedUserData.email}
-                    onChange={(e) =>
-                      setEditedUserData({
-                        ...editedUserData,
-                        email: e.target.value,
-                      })
-                    }
                   />
                 </div>
-                <div className="mb-3">
-                  <label className="form-label">Status</label>
-                  <select
-                    className="form-select"
-                    value={editedUserData.status}
-                    onChange={(e) =>
+                <div className="mb-3 d-flex align-items-center gap-2">
+                  <label className="form-label mt-1">Verified</label>
+                  <Switch
+                    id="accountVerified"
+                    onChange={(checked) =>
                       setEditedUserData({
                         ...editedUserData,
-                        status: e.target.value,
+                        isAccountVerified: checked, // Set true if checked, false if unchecked
                       })
                     }
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Suspended">Suspended</option>
-                  </select>
+                    checked={editedUserData?.isAccountVerified}
+                    uncheckedIcon={false} // Optionally, you can hide text/icons for better visuals
+                    checkedIcon={false}
+                    offColor="#888" // Color for unchecked state
+                    onColor="#007bff" // Color for checked state (green for verified)
+                  />
                 </div>
               </div>
               <div className="modal-footer">
@@ -1754,17 +1808,39 @@ function PolymartAdminDashboard() {
                   />
                 </div>
                 <div className="mb-3">
-                  <label className="form-label">Status</label>
-                  <select
-                    className="form-select"
-                    value={newUserData.status}
+                  <label className="form-label">Password</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    value={newUserData.password}
                     onChange={(e) =>
-                      setNewUserData({ ...newUserData, status: e.target.value })
+                      setNewUserData({
+                        ...newUserData,
+                        password: e.target.value,
+                      })
                     }
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Suspended">Suspended</option>
-                  </select>
+                    placeholder="Enter user password"
+                  />
+                </div>
+                <label className="form-label mt-1">User Verification</label>
+                <div className="mb-2 d-flex align-items-center gap-2">
+                  <Switch
+                    id="accountVerified"
+                    onChange={(checked) =>
+                      setNewUserData({
+                        ...newUserData,
+                        isAccountVerified: checked, // Set true if checked, false if unchecked
+                      })
+                    }
+                    checked={newUserData?.isAccountVerified}
+                    uncheckedIcon={false} // Optionally, you can hide text/icons for better visuals
+                    checkedIcon={false}
+                    offColor="#888" // Color for unchecked state
+                    onColor="#007bff" // Color for checked state (green for verified)
+                  />
+                  <label className="mt-0">
+                    {newUserData.isAccountVerified ? "Verified" : "Unverified"}
+                  </label>
                 </div>
               </div>
               <div className="modal-footer">
