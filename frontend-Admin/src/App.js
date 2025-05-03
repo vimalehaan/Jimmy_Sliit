@@ -165,7 +165,6 @@ function PolymartAdminDashboard() {
         throw new Error("Failed to fetch orders");
       }
       const data = await response.json();
-      console.log(data);
       setOrders(data);
     } catch (error) {
       console.error("Error fetching orders:", error);
@@ -183,7 +182,7 @@ function PolymartAdminDashboard() {
         throw new Error("Failed to fetch requests");
       }
       const data = await response.json();
-      setRequests(data);
+      setRequests(data.data);
     } catch (error) {
       console.error("Error fetching requests:", error);
       showAlert("Failed to load plastic collection requests");
@@ -221,12 +220,10 @@ function PolymartAdminDashboard() {
       user.email?.toLowerCase().includes(userSearchQuery.toLowerCase()),
   );
 
-  const filteredRequests = requests.filter(
+  const filteredRequests = requests?.filter(
     (request) =>
-      request.userName
-        ?.toLowerCase()
-        .includes(requestSearchQuery.toLowerCase()) ||
-      request.id?.toLowerCase().includes(requestSearchQuery.toLowerCase()) ||
+      request.name?.toLowerCase().includes(requestSearchQuery.toLowerCase()) ||
+      request._id?.toLowerCase().includes(requestSearchQuery.toLowerCase()) ||
       request.status?.toLowerCase().includes(requestSearchQuery.toLowerCase()),
   );
 
@@ -401,6 +398,35 @@ function PolymartAdminDashboard() {
     }
   };
 
+  const handleRequestAction = async (requestId, action) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/requests/${requestId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: action }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to ${action.toLowerCase()} request`);
+      }
+
+      const updatedRequests = requests.map((request) => {
+        if (request._id === requestId) {
+          return { ...request, status: action };
+        }
+        return request;
+      });
+      setRequests(updatedRequests);
+      showAlert(`Request ${action.toLowerCase()} successfully!`);
+      setSelectedRequest(null);
+    } catch (error) {
+      console.error(`Error ${action.toLowerCase()}ing request:`, error);
+      showAlert(`Failed to ${action.toLowerCase()} request`);
+    }
+  };
+
   const handleDeleteOrder = async (order) => {
     if (!order) {
       return;
@@ -426,36 +452,30 @@ function PolymartAdminDashboard() {
       showAlert("Failed to delete order");
     }
   };
-
-  const handleRequestAction = async (requestId, action) => {
+  const handleDeleteRequest = async (request) => {
+    if (!request) {
+      return;
+    }
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/requests/${requestId}/status`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: action }),
+      const response = await fetch(`${API_BASE_URL}/requests/${request._id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to ${action.toLowerCase()} request`);
-      }
-
-      const updatedRequests = requests.map((request) => {
-        if (request.id === requestId) {
-          return { ...request, status: action };
-        }
-        return request;
       });
-      setRequests(updatedRequests);
-      showAlert(`Request ${action.toLowerCase()} successfully!`);
-      setSelectedRequest(null);
+      if (response.ok) {
+        const updatedReq = requests.filter(
+          (existingRequests) => existingRequests._id !== request._id,
+        );
+        setRequests(updatedReq); // Update the orders state with the new list
+        showAlert("Request deleted successfully!"); // Show success message
+        setSelectedRequest(null);
+      } else {
+        throw new Error("Failed to delete request");
+      }
     } catch (error) {
-      console.error(`Error ${action.toLowerCase()}ing request:`, error);
-      showAlert(`Failed to ${action.toLowerCase()} request`);
+      console.error("Error Deleting request:", error);
+      showAlert("Failed to delete request");
     }
   };
 
@@ -578,7 +598,7 @@ function PolymartAdminDashboard() {
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Plastic Collection Request</h3>
-            <p className="card-text">Request ID: {selectedRequest.id}</p>
+            <p className="card-text">Request ID: {selectedRequest?._id}</p>
           </div>
           <div className="card-body">
             <div className="mb-3">
@@ -586,33 +606,40 @@ function PolymartAdminDashboard() {
               <input
                 type="text"
                 className="form-control"
-                value={selectedRequest.userName}
+                value={selectedRequest?.name}
                 readOnly
               />
             </div>
             <div className="mb-3">
-              <label className="form-label">Date</label>
+              <label className="form-label">Pickup date</label>
               <input
                 type="text"
                 className="form-control"
-                value={selectedRequest.date}
+                value={new Date(selectedRequest?.pickupDate).toLocaleDateString(
+                  "en-GB",
+                  {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  },
+                )}
                 readOnly
               />
             </div>
             <div className="mb-3">
-              <label className="form-label">Location</label>
+              <label className="form-label">Address</label>
               <input
                 type="text"
                 className="form-control"
-                value={selectedRequest.location}
+                value={selectedRequest?.address}
                 readOnly
               />
             </div>
             <div className="mb-3">
-              <label className="form-label">Notes</label>
+              <label className="form-label">Feedback</label>
               <textarea
                 className="form-control"
-                value={selectedRequest.notes}
+                value={selectedRequest?.feedback}
                 readOnly
               />
             </div>
@@ -627,25 +654,22 @@ function PolymartAdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedRequest.plastics &&
-                    selectedRequest.plastics.map((plastic, index) => (
-                      <tr key={index}>
-                        <td>{plastic.type}</td>
-                        <td>{plastic.kgs}</td>
-                      </tr>
-                    ))}
-                  <tr className="fw-bold">
-                    <td>Total</td>
-                    <td>
-                      {selectedRequest.plastics
-                        ? selectedRequest.plastics.reduce(
-                            (total, plastic) => total + (plastic.kgs || 0),
-                            0,
-                          )
-                        : 0}{" "}
-                      kgs
-                    </td>
+                  <tr>
+                    <td>{selectedRequest?.bottleType}</td>
+                    <td>{selectedRequest?.weight}</td>
                   </tr>
+                  {/*<tr className="fw-bold">*/}
+                  {/*  <td>Total</td>*/}
+                  {/*  <td>*/}
+                  {/*    {selectedRequest.plastics*/}
+                  {/*      ? selectedRequest.plastics.reduce(*/}
+                  {/*          (total, plastic) => total + (plastic.kgs || 0),*/}
+                  {/*          0,*/}
+                  {/*        )*/}
+                  {/*      : 0}{" "}*/}
+                  {/*    kgs*/}
+                  {/*  </td>*/}
+                  {/*</tr>*/}
                 </tbody>
               </table>
             </div>
@@ -655,40 +679,47 @@ function PolymartAdminDashboard() {
               <div className="d-flex align-items-center">
                 <span
                   className={`badge ${
-                    selectedRequest.status === "Approved"
+                    selectedRequest?.status === "Completed"
                       ? "bg-success"
-                      : selectedRequest.status === "Rejected"
+                      : selectedRequest?.status === "Pending"
                         ? "bg-danger"
                         : "bg-warning"
                   } me-3`}
                 >
-                  {selectedRequest.status}
+                  {selectedRequest?.status}
                 </span>
               </div>
             </div>
           </div>
           <div className="card-footer d-flex justify-content-end">
-            {selectedRequest.status === "Pending" && (
+            {selectedRequest?.status === "Pending" ||
+            selectedRequest?.status === "Picked Up" ? (
               <>
                 <button
                   className="btn btn-success me-2"
                   onClick={() =>
-                    handleRequestAction(selectedRequest.id, "Approved")
+                    handleRequestAction(selectedRequest._id, "Completed")
                   }
                 >
                   <Check className="me-1" />
-                  Approve
+                  Complete
                 </button>
                 <button
                   className="btn btn-danger"
-                  onClick={() =>
-                    handleRequestAction(selectedRequest.id, "Rejected")
-                  }
+                  onClick={() => handleDeleteRequest(selectedRequest)}
                 >
-                  <X className="me-1" />
-                  Reject
+                  <Trash size={18} className="mb-1" />
+                  Delete
                 </button>
               </>
+            ) : (
+              <button
+                className="btn btn-danger"
+                onClick={() => handleDeleteRequest(selectedRequest)}
+              >
+                <Trash size={18} className="mb-1" />
+                Delete
+              </button>
             )}
           </div>
         </div>
@@ -1439,26 +1470,29 @@ function PolymartAdminDashboard() {
                       </thead>
                       <tbody>
                         {filteredRequests.map((request) => (
-                          <tr key={request.id}>
-                            <td>{request.id}</td>
-                            <td>{request.userName}</td>
-                            <td>{request.date}</td>
+                          <tr key={request._id}>
+                            <td>{request._id}</td>
+                            <td>{request.name}</td>
                             <td>
-                              {request.plastics
-                                ? request.plastics.reduce(
-                                    (total, plastic) =>
-                                      total + (plastic.kgs || 0),
-                                    0,
-                                  )
-                                : 0}{" "}
+                              {new Date(request?.pickupDate).toLocaleDateString(
+                                "en-GB",
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                },
+                              )}
+                            </td>
+                            <td>
+                              {request.weight}
                               kgs
                             </td>
                             <td>
                               <span
                                 className={`badge ${
-                                  request.status === "Approved"
+                                  request.status === "Completed"
                                     ? "bg-success"
-                                    : request.status === "Rejected"
+                                    : request.status === "Pending"
                                       ? "bg-danger"
                                       : "bg-warning"
                                 }`}
