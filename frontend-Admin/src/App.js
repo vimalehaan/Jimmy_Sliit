@@ -727,150 +727,6 @@ function PolymartAdminDashboard() {
     );
   };
 
-  const renderMessageDetail = () => {
-    if (!selectedMessage) return null;
-
-    return (
-      <div className="mb-4">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <button
-            className="btn btn-outline-secondary"
-            onClick={() => setSelectedMessage(null)}
-          >
-            <ChevronLeft className="me-2" />
-            Back to messages
-          </button>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">{selectedMessage.subject}</h3>
-            <p className="card-text">
-              From: {selectedMessage.from} | Date: {selectedMessage.date}
-            </p>
-          </div>
-          <div className="card-body">
-            <div className="border rounded p-3 bg-light">
-              <p>{selectedMessage.content}</p>
-            </div>
-          </div>
-          <div className="card-footer d-flex justify-content-end">
-            <button
-              className={`btn ${isReplying ? "btn-secondary" : "btn-outline-secondary"} me-2`}
-              onClick={() => setIsReplying(!isReplying)}
-            >
-              {isReplying ? "Cancel Reply" : "Reply"}
-            </button>
-            <button className="btn btn-outline-secondary me-2">Forward</button>
-            <button className="btn btn-danger">Delete</button>
-          </div>
-        </div>
-
-        {isReplying && (
-          <div className="card mt-3">
-            <div className="card-header">
-              <h3 className="card-title">Reply to Message</h3>
-              <p className="card-text">Replying to: {selectedMessage.from}</p>
-            </div>
-            <div className="card-body">
-              <div className="mb-3">
-                <label className="form-label">Subject</label>
-                <input
-                  type="text"
-                  className="form-control bg-light"
-                  value={`Re: ${selectedMessage.subject}`}
-                  readOnly
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Your Reply</label>
-                <textarea
-                  className="form-control min-h-200"
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  placeholder="Type your reply here..."
-                  style={{ minHeight: "200px" }}
-                ></textarea>
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Attachments</label>
-                <div className="mb-2">
-                  <div className="d-flex align-items-center">
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        className="d-none"
-                        multiple
-                        onChange={handleAttachmentChange}
-                      />
-                      <button
-                        className="btn btn-outline-secondary"
-                        type="button"
-                      >
-                        <Paperclip className="me-2" />
-                        Add Attachment
-                      </button>
-                    </label>
-                  </div>
-                </div>
-
-                {attachments.length > 0 && (
-                  <div className="border rounded p-2">
-                    {attachments.map((file, index) => (
-                      <div
-                        key={index}
-                        className="d-flex justify-content-between align-items-center p-2 bg-light rounded mb-1"
-                      >
-                        <div className="d-flex align-items-center">
-                          <Paperclip className="text-muted me-2" />
-                          <span>{file.name}</span>
-                          <span className="text-muted ms-2">
-                            ({(file.size / 1024).toFixed(1)} KB)
-                          </span>
-                        </div>
-                        <button
-                          className="btn btn-link btn-sm"
-                          onClick={() => removeAttachment(index)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="card-footer d-flex justify-content-end">
-              <button
-                className="btn btn-primary"
-                onClick={handleReply}
-                disabled={isSending || !replyContent.trim()}
-              >
-                {isSending ? (
-                  <>
-                    <span
-                      className="spinner-border spinner-border-sm me-2"
-                      role="status"
-                      aria-hidden="true"
-                    ></span>
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="me-2" />
-                    Send Reply
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
   const renderTabContent = () => {
     switch (activeTab) {
       case "dashboard":
@@ -1533,92 +1389,6 @@ function PolymartAdminDashboard() {
           </div>
         );
 
-      case "messages":
-        return selectedMessage ? (
-          renderMessageDetail()
-        ) : (
-          <div className="mb-4">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h2 className="h4">Messages</h2>
-              <div className="d-flex">
-                <input
-                  type="text"
-                  className="form-control me-2"
-                  placeholder="Search messages..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-body">
-                {isLoading.messages ? (
-                  <div className="d-flex justify-content-center align-items-center py-5">
-                    <div className="spinner-border" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>From</th>
-                          <th>Subject</th>
-                          <th>Date</th>
-                          <th>Status</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredMessages.map((message) => (
-                          <tr
-                            key={message.id}
-                            className={!message.read ? "fw-bold" : ""}
-                          >
-                            <td>{message.from}</td>
-                            <td>{message.subject}</td>
-                            <td>{message.date}</td>
-                            <td>
-                              {message.read ? (
-                                <span className="text-muted">Read</span>
-                              ) : (
-                                <span className="text-primary">Unread</span>
-                              )}
-                            </td>
-                            <td>
-                              <button
-                                className="btn btn-outline-primary btn-sm"
-                                onClick={() => setSelectedMessage(message)}
-                              >
-                                View
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <div className="card-footer d-flex justify-content-between">
-                      <div className="text-muted">
-                        Showing 1 to {filteredMessages.length} of{" "}
-                        {messages.length} entries
-                      </div>
-                      <div className="d-flex">
-                        <button className="btn btn-outline-secondary btn-sm me-2">
-                          <ChevronLeft size={16} />
-                        </button>
-                        <button className="btn btn-outline-secondary btn-sm">
-                          <ChevronRight size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-
       default:
         return null;
     }
@@ -1676,17 +1446,17 @@ function PolymartAdminDashboard() {
             <Recycle className="me-2" />
             Plastic Requests
           </button>
-          <button
-            className={`btn d-flex align-items-center mb-1 ${
-              activeTab === "messages"
-                ? "btn-secondary"
-                : "btn-link text-decoration-none text-dark"
-            }`}
-            onClick={() => setActiveTab("messages")}
-          >
-            <Mail className="me-2" />
-            Messages
-          </button>
+          {/*<button*/}
+          {/*  className={`btn d-flex align-items-center mb-1 ${*/}
+          {/*    activeTab === "messages"*/}
+          {/*      ? "btn-secondary"*/}
+          {/*      : "btn-link text-decoration-none text-dark"*/}
+          {/*  }`}*/}
+          {/*  onClick={() => setActiveTab("messages")}*/}
+          {/*>*/}
+          {/*  <Mail className="me-2" />*/}
+          {/*  Messages*/}
+          {/*</button>*/}
         </nav>
       </div>
 
