@@ -24,6 +24,7 @@ const userRoutes = require('./routes/userRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const requestRoutes = require('./routes/requestRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const productRoutes = require('./routes/productRoutes');
 
 // Mount routers
 app.use('/api/auth', authRoutes);
@@ -31,6 +32,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/products', productRoutes);
 
 // Error Handling Middleware
 // const errorHandler = require('./middleware/errorHandler');
